@@ -1,11 +1,3 @@
-# History files
-.Rhistory
-
-# Example code in package build process
-*-Ex.R
-
-setwd("C:/02 Harkawal/PGSEM/PSGSEM/Term 2/Business Statistics/Project/Assessment Project - Data/Scripts_26Nov_09PM")
-
 library(gdata)
 library(gmodels)
 
@@ -41,15 +33,6 @@ createSubjectMean <- function (data,startCol, endCol) {
     GPA[i] <- modifyGradesForRow(selectedRow)
   }
   return (GPA)
-}
-
-TRcalGPAUpdDS <- function(data){
-  PKG_LKG_Rating <- createSubjectMean(data,5,5)
-  data <-data.frame(data,PKG_LKG_Rating)
-  UKG_Rating <- createSubjectMean(data,6,6)
-  data <-data.frame(data,UKG_Rating)
-    
-  return(data)
 }
 
 PKGcalGPAUpdDS <- function(data){
@@ -193,18 +176,31 @@ createCurrPerfTbl <- function(course,data){
   return(perfRow)
 }
 
-catgrzTeacherPerm <- function(data){
-  # > -10%  Significant drop
-  signDrop <- nrow(subset(data,data$centreGPApercChng < -10))
-  # -10  to -2%  Modest drop
-  modDrop <- nrow(subset(data,data$centreGPApercChng <= -2)) - signDrop
-  # - 2 to 2 %  No change
-  noChange <- nrow(subset(data,data$centreGPApercChng <= 2)) - modDrop - signDrop
-  # 2 % to 10%  Modest gain
-  modestGain <- nrow(subset(data,data$centreGPApercChng <= 10)) - noChange - modDrop - signDrop
-  # > 10%	Significant gain
-  signGain <- nrow(subset(data,data$centreGPApercChng > 10))
+createCentrePerfTbl <- function(dataCurr,dataPrev){
+  centreGPAsCurr <- aggregate(dataCurr$TotalGPA,list(dataCurr$Centre),mean)
+  colnames(centreGPAsCurr) <- c("Centre","Current_GPA")
+  centreGPAsPrev <- aggregate(dataPrev$TotalGPA,list(dataPrev$Centre),mean)
+  colnames(centreGPAsPrev) <- c("Centre","Previous_GPA")
+  centreGPAs <- merge(centreGPAsCurr,centreGPAsPrev,by="Centre")
+  colnames(centreGPAs) <- c("Centre","Current_GPA","Previous_GPA")
   
+  centreGPAs <- subset(centreGPAs,centreGPAs$Previous_GPA >= 1)  ### ignoring records for which GPA was less than 1 last month
+  
+  centreGPApercChng <- 100 * (centreGPAs$Current_GPA - centreGPAs$Previous_GPA)/centreGPAs$Previous_GPA
+  centreGPAs <- data.frame(centreGPAs,centreGPApercChng)
+  
+  # > -10%  Significant drop
+  signDrop <- nrow(subset(centreGPAs,centreGPAs$centreGPApercChng < -10))
+  # -10  to -2%  Modest drop
+  modDrop <- nrow(subset(centreGPAs,centreGPAs$centreGPApercChng <= -2)) - signDrop
+  # - 2 to 2 %	No change
+  noChange <- nrow(subset(centreGPAs,centreGPAs$centreGPApercChng <= 2)) - modDrop - signDrop
+  # 2 % to 10%	Modest gain
+  modestGain <- nrow(subset(centreGPAs,centreGPAs$centreGPApercChng <= 10)) - noChange - modDrop - signDrop
+  #noChange <- nrow(subset(centreGPAs,is.nan(centreGPAs$centreGPApercChng))) + noChange
+  # > 10%	Significant gain
+  signGain <- nrow(subset(centreGPAs,centreGPAs$centreGPApercChng > 10))
+ 
   perfCol <- c(1:5)
   perfCol[1] <- signDrop
   perfCol[2] <- modDrop
@@ -215,26 +211,6 @@ catgrzTeacherPerm <- function(data){
   return(perfCol)
 }
 
-createCentrePerfTbl <- function(dataCurr,dataPrev){
-  dataCurr <- TR_Curr
-  dataPrev <- TR_Prev
-    
-  dataCurr <- data.frame(dataCurr$Centre,dataCurr$PKG_LKG_Rating,dataCurr$UKG_Rating)
-  dataPrev <- data.frame(dataPrev$Centre,dataPrev$PKG_LKG_Rating,dataPrev$UKG_Rating)
-  
-  centreGPAs <- merge(dataCurr,dataPrev,by=1)
-  colnames(centreGPAs) <- c("Centre","PKG_LKG_Curr_Rating","UKG_Curr_Rating","PKG_LKG_Prev_Rating","UKG_Prev_Rating")
-  
-  PKGLKGcentreGPApercChng <- data.frame(subset(100 * (centreGPAs$PKG_LKG_Curr_Rating - centreGPAs$PKG_LKG_Prev_Rating)/centreGPAs$PKG_LKG_Prev_Rating,centreGPAs$PKG_LKG_Prev_Rating >= 1))  ### ignoring records for which GPA was less than 1 last month
-  colnames(PKGLKGcentreGPApercChng) <- c("centreGPApercChng")
-  UKGcentreGPApercChng <- data.frame(subset(100 * (centreGPAs$UKG_Curr_Rating - centreGPAs$UKG_Prev_Rating)/centreGPAs$UKG_Prev_Rating,centreGPAs$UKG_Prev_Rating >= 1))  ### ignoring records for which GPA was less than 1 last month
-  colnames(UKGcentreGPApercChng) <- c("centreGPApercChng")
-  
-  PKGLKG <- data.frame(catgrzTeacherPerm(PKGLKGcentreGPApercChng))
-  UKG <- data.frame(catgrzTeacherPerm(UKGcentreGPApercChng))
-                     
-  return(cbind(PKGLKG,PKGLKG,UKG))
-}
 
 createChildrenPerfTbl <- function(dataCurr,dataPrev){
   GPAsCurr <- aggregate(dataCurr$TotalGPA,list(dataCurr$Student.Code),mean)
@@ -286,6 +262,11 @@ UKG_Prev <- getDataFrmXL("DataFiles/UKG Assessment Data.xls",prevMonth)
 
 TR_Curr <- getDataFrmXL("DataFiles/KG - Teacher Rating.xls",currMonth)
 TR_Prev <- getDataFrmXL("DataFiles/KG - Teacher Rating.xls",prevMonth)
+
+numCols_UKG_Curr <- ncol(UKG_Curr)
+numCols_LKG_Curr <- ncol(LKG_Curr)
+numCols_PKG_Curr <- ncol(PKG_Curr)
+
 #####  Load data -- ends ########
 
 #####  GPA calculation -- starts ########
@@ -299,41 +280,25 @@ LKG_Prev <- LKGcalGPAUpdDS(LKG_Prev)
 UKG_Curr <- UKGcalGPAUpdDS(UKG_Curr)
 UKG_Prev <- UKGcalGPAUpdDS(UKG_Prev)
 
-TR_Curr <- TRcalGPAUpdDS(TR_Curr)
-TR_Prev <- TRcalGPAUpdDS(TR_Prev)
-
 PKGcentreGPAsCurr <- createCentreGPAs(PKG_Curr)
-PKGEPcentreTRRatingsCurr<- data.frame(subset(TR_Curr$Centre,TR_Curr$PKG_LKG_Rating >2))
-colnames(PKGEPcentreTRRatingsCurr) <- c("Centre")
-PKGEPcentreGPAsCurr <- merge(PKGcentreGPAsCurr,PKGEPcentreTRRatingsCurr,by="Centre")
+PKGEPcentreGPAsCurr<- subset(PKGcentreGPAsCurr,PKGcentreGPAsCurr$TotalGPA > 3)
 
 PKGcentreGPAsPrev <- createCentreGPAs(PKG_Prev)
-PKGEPcentreTRRatingsPrev <- data.frame(subset(TR_Prev$Centre,TR_Prev$PKG_LKG_Rating >2))
-colnames(PKGEPcentreTRRatingsPrev) <- c("Centre")
-PKGEPcentreGPAsPrev <- merge(PKGcentreGPAsPrev,PKGEPcentreTRRatingsPrev,by="Centre")
+PKGEPcentreGPAsPrev <- subset(PKGcentreGPAsPrev,PKGcentreGPAsPrev$TotalGPA > 3)
 
 LKGcentreGPAsCurr <- createCentreGPAs(LKG_Curr)
-LKGEPcentreTRRatingsCurr<- data.frame(subset(TR_Curr$Centre,TR_Curr$PKG_LKG_Rating >2))
-colnames(LKGEPcentreTRRatingsCurr) <- c("Centre")
-LKGEPcentreGPAsCurr <- merge(LKGcentreGPAsCurr,LKGEPcentreTRRatingsCurr,by="Centre")
+LKGEPcentreGPAsCurr<- subset(LKGcentreGPAsCurr,LKGcentreGPAsCurr$TotalGPA > 3)
 
 LKGcentreGPAsPrev <- createCentreGPAs(LKG_Prev)
-LKGEPcentreTRRatingsPrev<- data.frame(subset(TR_Prev$Centre,TR_Prev$PKG_LKG_Rating >2))
-colnames(LKGEPcentreTRRatingsPrev) <- c("Centre")
-LKGEPcentreGPAsPrev <- merge(LKGcentreGPAsPrev,LKGEPcentreTRRatingsPrev,by="Centre")
+LKGEPcentreGPAsPrev<- subset(LKGcentreGPAsPrev,LKGcentreGPAsPrev$TotalGPA > 3)
 
 UKGcentreGPAsCurr <- createCentreGPAs(UKG_Curr)
-UKGEPcentreTRRatingsCurr<- data.frame(subset(TR_Curr$Centre,TR_Curr$UKG_Rating >2))
-colnames(UKGEPcentreTRRatingsCurr) <- c("Centre")
-UKGEPcentreGPAsCurr <- merge(UKGcentreGPAsCurr,UKGEPcentreTRRatingsCurr,by="Centre")
+UKGEPcentreGPAsCurr<- subset(UKGcentreGPAsCurr,UKGcentreGPAsCurr$TotalGPA > 3)
 
 UKGcentreGPAsPrev <- createCentreGPAs(UKG_Prev)
-UKGEPcentreTRRatingsPrev<- data.frame(subset(TR_Prev$Centre,TR_Prev$UKG_Rating >2))
-colnames(UKGEPcentreTRRatingsPrev) <- c("Centre")
-UKGEPcentreGPAsPrev <- merge(UKGcentreGPAsPrev,UKGEPcentreTRRatingsPrev,by="Centre")
+UKGEPcentreGPAsPrev<- subset(UKGcentreGPAsPrev,UKGcentreGPAsPrev$TotalGPA > 3)
 
-
-####  GPA calculation -- ends ########
+#####  GPA calculation -- ends ########
 
 #####  Table 1 data -- starts ########
 
@@ -354,10 +319,6 @@ courseCurrPerf <- rbind(PKGALLPerf,PKGEPPerf,LKGALLPerf,LKGEPPerf,UKGALLPerf,UKG
 
 #####  Table 2 data -- ends ########
 
-#####  Table 3 data -- starts ########
-
-#####  Table 3 data -- ends ########
-
 #####  Table 4 data -- starts ########
 
 tab4Col1 <- c(1:5)
@@ -374,7 +335,12 @@ tab4Col2[3] <- "No change"
 tab4Col2[4] <- "Modest gain"
 tab4Col2[5] <- "Significant gain"
 
-centrePerf <- cbind(tab4Col1,tab4Col2,createCentrePerfTbl(TR_Curr,TR_Prev))
+
+PKGCentrePerf <- data.frame(createCentrePerfTbl(PKG_Curr,PKG_Prev))
+LKGCentrePerf <- data.frame(createCentrePerfTbl(LKG_Curr,LKG_Prev))
+UKGCentrePerf <- data.frame(createCentrePerfTbl(UKG_Curr,UKG_Prev))
+
+centrePerf <- cbind(tab4Col1,tab4Col2,PKGCentrePerf,LKGCentrePerf,UKGCentrePerf)
 
 colnames(centrePerf) <- c("GPA - performance %","Description","# of PKG centres","# of LKG centres","# of UKG centres")
 
@@ -406,23 +372,60 @@ childrenPerf <- cbind(tab4Col1,tab4Col2,PKGChildrenPerf,LKGChildrenPerf,UKGChild
 colnames(childrenPerf) <- c("GPA - performance %","Description","# of PKG children","# of LKG children","# of UKG children")
 
 #####  Table 5 data -- ends ########  
-# 
-# a <- aggregate(UKG_Curr[,7],list(UKG_Curr[,7]),length )
-# b <- data.frame(a[3:6,2])
-# b <- b/sum(b)*100
-# 
-# d <- aggregate(UKG_Curr[,8],list(UKG_Curr[,8]),length )
-# d <- data.frame(d[3:6,2])
-# d <- d/sum(d)*100
-# 
-# b <- cbind(b,d)
-# 
-# c <- t(b)
-# colnames(c) <- c("S","T1","E","P")
-# 
-# 
-# barplot(t(c), las =2)
 
+createPlotTable <- function(startCol, endCol){
+  for(i in startCol:endCol){
+    colAgg <- aggregate(LKG_Curr[,i],list(LKG_Curr[,i]),length )
+    colAggGrades <- data.frame(colAgg[3:6,2])
+    sumGrades <- sum(colAggGrades, na.rm = TRUE)
+        
+    T_Grade <- subset(colAgg,colAgg[,1] == "T")[,2]/sumGrades*100
+    E_Grade <- subset(colAgg,colAgg[,1] == "E")[,2]/sumGrades*100
+    P_Grade <- subset(colAgg,colAgg[,1] == "P")[,2]/sumGrades*100
+    S_Grade <- subset(colAgg,colAgg[,1] == "S")[,2]/sumGrades*100
+    
+    if(length(S_Grade)==0){
+      S_Grade <- 0  
+    } 
+    if(length(T_Grade)==0){
+      T_Grade <- 0  
+    }
+    if(length(E_Grade)==0){
+      E_Grade <- 0  
+    }
+    if(length(P_Grade)==0){
+      P_Grade <- 0  
+    }  
+    mydf1 <- data.frame(S_Grade,T_Grade,E_Grade,P_Grade)
+    if(i == startCol){
+      tab1 <- mydf1  
+    }else{
+      tab1 <- rbind(tab1, mydf1)
+    }
+  }
+  tab2 <- t(tab1)
+  return (tab2)
+}
 
+plotHistograms <- function(histFileName, numCols, subTitle){
+  
+  x <- createPlotTable(7,numCols)
+  png(histFileName, width = 800, height = 325)
+  barplot(x, width = 1, space = 1,
+        names.arg = NULL, legend.text = TRUE, beside = FALSE,
+        horiz = FALSE, density = NULL, angle = 45,
+        col = c("cornflowerblue","firebrick4","green4","plum"), border = par("fg"),
+        main = "Understanding  performance in individual learning outcomes for the month", 
+        sub = subTitle, xlab = NULL, ylab = NULL,
+        xlim = NULL, ylim = NULL, xpd = TRUE, log = "",
+        axes = TRUE, axisnames = TRUE,
+        cex.axis = par("cex.axis"), cex.names = par("cex.axis"),
+        inside = TRUE, plot = TRUE, axis.lty = 0, offset = 0,
+        add = FALSE, args.legend = list(x = "top" ,horiz = TRUE, inset=-0.3, bty="n"))
+  dev.off()
+}
 
+plotHistograms("histogram_ukg.png", numCols_UKG_Curr, "UKG")
+plotHistograms("histogram_Lkg.png", numCols_LKG_Curr, "LKG")
+plotHistograms("histogram_Prekg.png", numCols_PKG_Curr, "Pre-KG")
 
