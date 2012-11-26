@@ -3,3 +3,426 @@
 
 # Example code in package build process
 *-Ex.R
+
+setwd("C:/02 Harkawal/PGSEM/PSGSEM/Term 2/Business Statistics/Project/Assessment Project - Data/Scripts_26Nov_09PM")
+
+library(gdata)
+library(gmodels)
+
+##### functions ######
+
+# read data and rename extra long column names
+getDataFrmXL <- function(fileName,sheetName){
+  return(read.xls(fileName,sheet=sheetName, perl="perl",strip.white=TRUE))
+}
+
+mapGrades <- function(type) {
+  if (type == "S") 1
+  else if (type == "T") 2
+  else if (type == "E") 3
+  else if (type == "P") 4
+  else 0
+}
+
+modifyGradesForRow <- function (row) {
+  valArray <- c(1:length(row))
+  for(i in 1:length(row)){
+    x <- mapGrades(trim(row[i]))
+    valArray[i] <- x
+  }
+  subjectMean <- mean(valArray)
+  return(subjectMean)
+}
+
+createSubjectMean <- function (data,startCol, endCol) {
+  GPA <- c(1:nrow(data))
+  for(i in 1:nrow(data)){
+    selectedRow <- data.frame(data[i, startCol:endCol])
+    GPA[i] <- modifyGradesForRow(selectedRow)
+  }
+  return (GPA)
+}
+
+TRcalGPAUpdDS <- function(data){
+  PKG_LKG_Rating <- createSubjectMean(data,5,5)
+  data <-data.frame(data,PKG_LKG_Rating)
+  UKG_Rating <- createSubjectMean(data,6,6)
+  data <-data.frame(data,UKG_Rating)
+    
+  return(data)
+}
+
+PKGcalGPAUpdDS <- function(data){
+  English_GPA <- createSubjectMean(data,7,8)
+  data <-data.frame(data,English_GPA)
+  Kannada_GPA <- createSubjectMean(data,9,10)
+  data <-data.frame(data,Kannada_GPA)
+  Theme_GeneralConcepts_GPA <- createSubjectMean(data,11,11)
+  data <-data.frame(data,Theme_GeneralConcepts_GPA)
+  Physical_Dev_GPA <- createSubjectMean(data,12,14)
+  data <-data.frame(data,Physical_Dev_GPA)
+  Socio_Dev_GPA <- createSubjectMean(data,15,15)
+  data <-data.frame(data,Socio_Dev_GPA)
+  Creative_Dev_GPA <- createSubjectMean(data,16,16)
+  data <-data.frame(data,Creative_Dev_GPA)
+  
+  TotalGPA <- (English_GPA + Kannada_GPA + Theme_GeneralConcepts_GPA + Physical_Dev_GPA + Socio_Dev_GPA + Creative_Dev_GPA )/6
+  data <-data.frame(data,TotalGPA)
+  
+  return(data)
+}
+
+LKGcalGPAUpdDS <- function(data){
+  
+  English_GPA <- createSubjectMean(data,7,12)
+  data <-data.frame(data,English_GPA)
+  Kannada_GPA <- createSubjectMean(data,13,14)
+  data <-data.frame(data,Kannada_GPA)
+  Math_GPA <- createSubjectMean(data,15,17)
+  data <-data.frame(data,Math_GPA)
+  Theme_GeneralConcepts_GPA <- createSubjectMean(data,18,19)
+  data <-data.frame(data,Theme_GeneralConcepts_GPA)
+  Physical_Dev_GPA <- createSubjectMean(data,20,22)
+  data <-data.frame(data,Physical_Dev_GPA)
+  Socio_Dev_GPA <- createSubjectMean(data,23,23)
+  data <-data.frame(data,Socio_Dev_GPA)
+  Creative_Dev_GPA <- createSubjectMean(data,24,24)
+  data <-data.frame(data,Creative_Dev_GPA)
+  
+  TotalGPA <- (English_GPA + Kannada_GPA + Math_GPA + Theme_GeneralConcepts_GPA + Physical_Dev_GPA + Socio_Dev_GPA + Creative_Dev_GPA )/7
+  data <-data.frame(data,TotalGPA)
+  return(data)
+}
+
+UKGcalGPAUpdDS <- function(data){
+  English_GPA <- createSubjectMean(data,7,10)
+  data <-data.frame(data,English_GPA)
+  Kannada_GPA <- createSubjectMean(data,11,13)
+  data <-data.frame(data,Kannada_GPA)
+  Math_GPA <- createSubjectMean(data,14,17)
+  data <-data.frame(data,Math_GPA)
+  Theme_GeneralConcepts_GPA <- createSubjectMean(data,18,18)
+  data <-data.frame(data,Theme_GeneralConcepts_GPA)
+  Physical_Dev_GPA <- createSubjectMean(data,19,20)
+  data <-data.frame(data,Physical_Dev_GPA)
+  Socio_Dev_GPA <- createSubjectMean(data,21,22)
+  data <-data.frame(data,Socio_Dev_GPA)
+  Creative_Dev_GPA <- createSubjectMean(data,23,23)
+  data <-data.frame(data,Creative_Dev_GPA)
+  
+  TotalGPA <- (English_GPA + Kannada_GPA + Math_GPA + Theme_GeneralConcepts_GPA + Physical_Dev_GPA + Socio_Dev_GPA + Creative_Dev_GPA )/7
+  data <-data.frame(data,TotalGPA)
+  return(data)
+}
+
+createCentreGPAs <- function(data){
+
+  centreEnglishGPAsCurr <- aggregate(data$English_GPA,list(data$Centre),mean)
+  colnames(centreEnglishGPAsCurr) <- c("Centre","English_GPA")
+  
+  centreKannadaGPAsCurr <- aggregate(data$Kannada_GPA,list(data$Centre),mean)
+  colnames(centreKannadaGPAsCurr) <- c("Centre","Kannada_GPA")
+  
+  if (length(which(colnames(data)=="Math_GPA"))>0) {
+    centreMathGPAsCurr <- aggregate(data$Math_GPA,list(data$Centre),mean)
+  }
+  else{
+    centre <- data.frame(data$Centre)
+    centreMathGPAsCurr <- unique(centre)
+    Z <- c("NA")[rep(c(1),times=nrow(centreMathGPAsCurr))]
+    centreMathGPAsCurr <- cbind(centreMathGPAsCurr,Z)
+  } 
+  colnames(centreMathGPAsCurr) <- c("Centre","Math_GPA")
+    
+  
+  centreThemeGPAsCurr <- aggregate(data$Theme_GeneralConcepts_GPA,list(data$Centre),mean)
+  colnames(centreThemeGPAsCurr) <- c("Centre","Theme_GeneralConcepts_GPA")
+  
+  centrePhysicalDevGPAsCurr <- aggregate(data$Physical_Dev_GPA,list(data$Centre),mean)
+  colnames(centrePhysicalDevGPAsCurr) <- c("Centre","Physical_Dev_GPA")
+  
+  centreSocioDevGPAsCurr <- aggregate(data$Socio_Dev_GPA,list(data$Centre),mean)
+  colnames(centreSocioDevGPAsCurr) <- c("Centre","Socio_Dev_GPA")
+  
+  centreCreativeDevGPAsCurr <- aggregate(data$Creative_Dev_GPA,list(data$Centre),mean)
+  colnames(centreCreativeDevGPAsCurr) <- c("Centre","Creative_Dev_GPA")
+  
+  centreTotalGPAsCurr <- aggregate(data$TotalGPA,list(data$Centre),mean)
+  colnames(centreTotalGPAsCurr) <- c("Centre","TotalGPA")
+  
+  centreSDGPAsCurr <- aggregate(data$TotalGPA,list(data$Centre),sd)
+  colnames(centreSDGPAsCurr) <- c("Centre","StdDevGPA")
+ 
+  centreNumStudentsCurr <- aggregate(data$Student.Code,list(data$Centre),length)
+  colnames(centreNumStudentsCurr) <- c("Centre","NumOfStudents")
+  
+  centreGPAsCurr <- merge(centreEnglishGPAsCurr,centreKannadaGPAsCurr,by="Centre")
+  centreGPAsCurr <- merge(centreGPAsCurr,centreMathGPAsCurr,by="Centre")
+  centreGPAsCurr <- merge(centreGPAsCurr,centreThemeGPAsCurr,by="Centre")
+  centreGPAsCurr <- merge(centreGPAsCurr,centrePhysicalDevGPAsCurr,by="Centre")
+  centreGPAsCurr <- merge(centreGPAsCurr,centreSocioDevGPAsCurr,by="Centre")
+  centreGPAsCurr <- merge(centreGPAsCurr,centreCreativeDevGPAsCurr,by="Centre")
+  centreGPAsCurr <- merge(centreGPAsCurr,centreTotalGPAsCurr,by="Centre")
+  centreGPAsCurr <- merge(centreGPAsCurr,centreSDGPAsCurr,by="Centre")
+  centreGPAsCurr <- merge(centreGPAsCurr,centreNumStudentsCurr,by="Centre")
+  
+  return(centreGPAsCurr)  
+  
+}
+
+createCurrPerfTbl <- function(course,data){
+  course <- course 
+  centre <- data.frame(data$Centre)
+  Number_Of_Centres <- nrow(unique(centre))
+  
+  Number_Of_Students <- sum(data$NumOfStudents)
+  
+  English <- mean(data$English_GPA)
+  Kannada <- mean(data$Kannada_GPA)
+  Math <- mean(data$Math_GPA)
+  Theme <- mean(data$Theme_GeneralConcepts_GPA)
+  Physical_Development <- mean(data$Physical_Dev_GPA)
+  Socio_emotional <- mean(data$Socio_Dev_GPA)
+  Creative_development <- mean(data$Creative_Dev_GPA)
+  Total_GPA <- mean(data$TotalGPA)
+  Std_deviation <- sd(data$TotalGPA)
+  
+  perfRow <- data.frame(course,
+                        Number_Of_Centres,Number_Of_Students,English,Kannada,Math,Theme,Physical_Development,
+                        Socio_emotional,Creative_development,Total_GPA,Std_deviation)
+  return(perfRow)
+}
+
+catgrzTeacherPerm <- function(data){
+  # > -10%  Significant drop
+  signDrop <- nrow(subset(data,data$centreGPApercChng < -10))
+  # -10  to -2%  Modest drop
+  modDrop <- nrow(subset(data,data$centreGPApercChng <= -2)) - signDrop
+  # - 2 to 2 %  No change
+  noChange <- nrow(subset(data,data$centreGPApercChng <= 2)) - modDrop - signDrop
+  # 2 % to 10%  Modest gain
+  modestGain <- nrow(subset(data,data$centreGPApercChng <= 10)) - noChange - modDrop - signDrop
+  # > 10%	Significant gain
+  signGain <- nrow(subset(data,data$centreGPApercChng > 10))
+  
+  perfCol <- c(1:5)
+  perfCol[1] <- signDrop
+  perfCol[2] <- modDrop
+  perfCol[3] <- noChange
+  perfCol[4] <- modestGain
+  perfCol[5] <- signGain
+  
+  return(perfCol)
+}
+
+createCentrePerfTbl <- function(dataCurr,dataPrev){
+  dataCurr <- TR_Curr
+  dataPrev <- TR_Prev
+    
+  dataCurr <- data.frame(dataCurr$Centre,dataCurr$PKG_LKG_Rating,dataCurr$UKG_Rating)
+  dataPrev <- data.frame(dataPrev$Centre,dataPrev$PKG_LKG_Rating,dataPrev$UKG_Rating)
+  
+  centreGPAs <- merge(dataCurr,dataPrev,by=1)
+  colnames(centreGPAs) <- c("Centre","PKG_LKG_Curr_Rating","UKG_Curr_Rating","PKG_LKG_Prev_Rating","UKG_Prev_Rating")
+  
+  PKGLKGcentreGPApercChng <- data.frame(subset(100 * (centreGPAs$PKG_LKG_Curr_Rating - centreGPAs$PKG_LKG_Prev_Rating)/centreGPAs$PKG_LKG_Prev_Rating,centreGPAs$PKG_LKG_Prev_Rating >= 1))  ### ignoring records for which GPA was less than 1 last month
+  colnames(PKGLKGcentreGPApercChng) <- c("centreGPApercChng")
+  UKGcentreGPApercChng <- data.frame(subset(100 * (centreGPAs$UKG_Curr_Rating - centreGPAs$UKG_Prev_Rating)/centreGPAs$UKG_Prev_Rating,centreGPAs$UKG_Prev_Rating >= 1))  ### ignoring records for which GPA was less than 1 last month
+  colnames(UKGcentreGPApercChng) <- c("centreGPApercChng")
+  
+  PKGLKG <- data.frame(catgrzTeacherPerm(PKGLKGcentreGPApercChng))
+  UKG <- data.frame(catgrzTeacherPerm(UKGcentreGPApercChng))
+                     
+  return(cbind(PKGLKG,PKGLKG,UKG))
+}
+
+createChildrenPerfTbl <- function(dataCurr,dataPrev){
+  GPAsCurr <- aggregate(dataCurr$TotalGPA,list(dataCurr$Student.Code),mean)
+  colnames(GPAsCurr) <- c("student","Current_GPA")
+  GPAsPrev <- aggregate(dataPrev$TotalGPA,list(dataPrev$Student.Code),mean)
+  colnames(GPAsPrev) <- c("student","Previous_GPA")
+  GPAs <- merge(GPAsCurr,GPAsPrev,by="student")
+  colnames(GPAs) <- c("student","Current_GPA","Previous_GPA")
+  
+  GPAs <- subset(GPAs,GPAs$Previous_GPA >= 1)  ### ignoring records for which GPA was less than 1 last month
+  
+  GPApercChng <- 100 * (GPAs$Current_GPA - GPAs$Previous_GPA)/GPAs$Previous_GPA
+  GPAs <- data.frame(GPAs,GPApercChng)
+  
+  # > -10%  Significant drop
+  signDrop <- nrow(subset(GPAs,GPAs$GPApercChng < -10))
+  # -10  to -2%  Modest drop
+  modDrop <- nrow(subset(GPAs,GPAs$GPApercChng <= -2)) - signDrop
+  # - 2 to 2 %  No change
+  noChange <- nrow(subset(GPAs,GPAs$GPApercChng <= 2)) - modDrop - signDrop
+  # 2 % to 10%	Modest gain
+  modestGain <- nrow(subset(GPAs,GPAs$GPApercChng <= 10)) - noChange - modDrop - signDrop
+  #noChange <- nrow(subset(GPAs,is.nan(GPAs$GPApercChng))) + noChange
+  # > 10%	Significant gain
+  signGain <- nrow(subset(GPAs,GPAs$GPApercChng > 10))
+  
+  perfCol <- c(1:5)
+  perfCol[1] <- signDrop
+  perfCol[2] <- modDrop
+  perfCol[3] <- noChange
+  perfCol[4] <- modestGain
+  perfCol[5] <- signGain
+  
+  return(perfCol)
+}
+
+#####  Load data -- starts ########
+currMonth <- "August"
+prevMonth <- "July"
+
+PKG_Curr <- getDataFrmXL("DataFiles/Pre-KG Assessment Data.xls",currMonth)
+PKG_Prev <- getDataFrmXL("DataFiles/Pre-KG Assessment Data.xls",prevMonth)
+
+LKG_Curr <- getDataFrmXL("DataFiles/LKG Assessment Data.xls",currMonth)
+LKG_Prev <- getDataFrmXL("DataFiles/LKG Assessment Data.xls",prevMonth)
+
+UKG_Curr <- getDataFrmXL("DataFiles/UKG Assessment Data.xls",currMonth)
+UKG_Prev <- getDataFrmXL("DataFiles/UKG Assessment Data.xls",prevMonth)
+
+TR_Curr <- getDataFrmXL("DataFiles/KG - Teacher Rating.xls",currMonth)
+TR_Prev <- getDataFrmXL("DataFiles/KG - Teacher Rating.xls",prevMonth)
+#####  Load data -- ends ########
+
+#####  GPA calculation -- starts ########
+
+PKG_Curr <- PKGcalGPAUpdDS(PKG_Curr)
+PKG_Prev <- PKGcalGPAUpdDS(PKG_Prev)
+
+LKG_Curr <- LKGcalGPAUpdDS(LKG_Curr)
+LKG_Prev <- LKGcalGPAUpdDS(LKG_Prev)
+
+UKG_Curr <- UKGcalGPAUpdDS(UKG_Curr)
+UKG_Prev <- UKGcalGPAUpdDS(UKG_Prev)
+
+TR_Curr <- TRcalGPAUpdDS(TR_Curr)
+TR_Prev <- TRcalGPAUpdDS(TR_Prev)
+
+PKGcentreGPAsCurr <- createCentreGPAs(PKG_Curr)
+PKGEPcentreTRRatingsCurr<- data.frame(subset(TR_Curr$Centre,TR_Curr$PKG_LKG_Rating >2))
+colnames(PKGEPcentreTRRatingsCurr) <- c("Centre")
+PKGEPcentreGPAsCurr <- merge(PKGcentreGPAsCurr,PKGEPcentreTRRatingsCurr,by="Centre")
+
+PKGcentreGPAsPrev <- createCentreGPAs(PKG_Prev)
+PKGEPcentreTRRatingsPrev <- data.frame(subset(TR_Prev$Centre,TR_Prev$PKG_LKG_Rating >2))
+colnames(PKGEPcentreTRRatingsPrev) <- c("Centre")
+PKGEPcentreGPAsPrev <- merge(PKGcentreGPAsPrev,PKGEPcentreTRRatingsPrev,by="Centre")
+
+LKGcentreGPAsCurr <- createCentreGPAs(LKG_Curr)
+LKGEPcentreTRRatingsCurr<- data.frame(subset(TR_Curr$Centre,TR_Curr$PKG_LKG_Rating >2))
+colnames(LKGEPcentreTRRatingsCurr) <- c("Centre")
+LKGEPcentreGPAsCurr <- merge(LKGcentreGPAsCurr,LKGEPcentreTRRatingsCurr,by="Centre")
+
+LKGcentreGPAsPrev <- createCentreGPAs(LKG_Prev)
+LKGEPcentreTRRatingsPrev<- data.frame(subset(TR_Prev$Centre,TR_Prev$PKG_LKG_Rating >2))
+colnames(LKGEPcentreTRRatingsPrev) <- c("Centre")
+LKGEPcentreGPAsPrev <- merge(LKGcentreGPAsPrev,LKGEPcentreTRRatingsPrev,by="Centre")
+
+UKGcentreGPAsCurr <- createCentreGPAs(UKG_Curr)
+UKGEPcentreTRRatingsCurr<- data.frame(subset(TR_Curr$Centre,TR_Curr$UKG_Rating >2))
+colnames(UKGEPcentreTRRatingsCurr) <- c("Centre")
+UKGEPcentreGPAsCurr <- merge(UKGcentreGPAsCurr,UKGEPcentreTRRatingsCurr,by="Centre")
+
+UKGcentreGPAsPrev <- createCentreGPAs(UKG_Prev)
+UKGEPcentreTRRatingsPrev<- data.frame(subset(TR_Prev$Centre,TR_Prev$UKG_Rating >2))
+colnames(UKGEPcentreTRRatingsPrev) <- c("Centre")
+UKGEPcentreGPAsPrev <- merge(UKGcentreGPAsPrev,UKGEPcentreTRRatingsPrev,by="Centre")
+
+
+####  GPA calculation -- ends ########
+
+#####  Table 1 data -- starts ########
+
+PKGALLPerf <- createCurrPerfTbl("PKG-ALL",PKGcentreGPAsCurr)
+PKGEPPerf <- createCurrPerfTbl("PKG-E and P Centres",PKGEPcentreGPAsCurr)
+
+LKGALLPerf <- createCurrPerfTbl("LKG-ALL",LKGcentreGPAsCurr)
+LKGEPPerf <- createCurrPerfTbl("LKG-E and P Centres",LKGEPcentreGPAsCurr)
+
+UKGALLPerf <- createCurrPerfTbl("UKG-ALL",UKGcentreGPAsCurr)
+UKGEPPerf <- createCurrPerfTbl("UKG-E and P Centres",UKGEPcentreGPAsCurr)
+
+courseCurrPerf <- rbind(PKGALLPerf,PKGEPPerf,LKGALLPerf,LKGEPPerf,UKGALLPerf,UKGEPPerf)
+
+#####  Table 1 data -- ends ########
+
+#####  Table 2 data -- starts ########
+
+#####  Table 2 data -- ends ########
+
+#####  Table 3 data -- starts ########
+
+#####  Table 3 data -- ends ########
+
+#####  Table 4 data -- starts ########
+
+tab4Col1 <- c(1:5)
+tab4Col1[1] <- "> -10%"
+tab4Col1[2] <- "-10  to -2%"
+tab4Col1[3] <- "- 2 to 2 %"
+tab4Col1[4] <- "2 % to 10%"
+tab4Col1[5] <- "> 10%"
+
+tab4Col2 <- c(1:5)
+tab4Col2[1] <- "Significant drop"
+tab4Col2[2] <- "Modest drop"
+tab4Col2[3] <- "No change"
+tab4Col2[4] <- "Modest gain"
+tab4Col2[5] <- "Significant gain"
+
+centrePerf <- cbind(tab4Col1,tab4Col2,createCentrePerfTbl(TR_Curr,TR_Prev))
+
+colnames(centrePerf) <- c("GPA - performance %","Description","# of PKG centres","# of LKG centres","# of UKG centres")
+
+#####  Table 4 data -- ends ########  
+  
+#####  Table 5 data -- starts ########
+
+tab4Col1 <- c(1:5)
+tab4Col1[1] <- "> -10%"
+tab4Col1[2] <- "-10  to -2%"
+tab4Col1[3] <- "- 2 to 2 %"
+tab4Col1[4] <- "2 % to 10%"
+tab4Col1[5] <- "> 10%"
+
+tab4Col2 <- c(1:5)
+tab4Col2[1] <- "Significant drop"
+tab4Col2[2] <- "Modest drop"
+tab4Col2[3] <- "No change"
+tab4Col2[4] <- "Modest gain"
+tab4Col2[5] <- "Significant gain"
+
+
+PKGChildrenPerf <- data.frame(createChildrenPerfTbl(PKG_Curr,PKG_Prev))
+LKGChildrenPerf <- data.frame(createChildrenPerfTbl(LKG_Curr,LKG_Prev))
+UKGChildrenPerf <- data.frame(createChildrenPerfTbl(UKG_Curr,UKG_Prev))
+
+childrenPerf <- cbind(tab4Col1,tab4Col2,PKGChildrenPerf,LKGChildrenPerf,UKGChildrenPerf)
+
+colnames(childrenPerf) <- c("GPA - performance %","Description","# of PKG children","# of LKG children","# of UKG children")
+
+#####  Table 5 data -- ends ########  
+# 
+# a <- aggregate(UKG_Curr[,7],list(UKG_Curr[,7]),length )
+# b <- data.frame(a[3:6,2])
+# b <- b/sum(b)*100
+# 
+# d <- aggregate(UKG_Curr[,8],list(UKG_Curr[,8]),length )
+# d <- data.frame(d[3:6,2])
+# d <- d/sum(d)*100
+# 
+# b <- cbind(b,d)
+# 
+# c <- t(b)
+# colnames(c) <- c("S","T1","E","P")
+# 
+# 
+# barplot(t(c), las =2)
+
+
+
+
